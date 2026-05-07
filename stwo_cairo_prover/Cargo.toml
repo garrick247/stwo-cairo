@@ -55,10 +55,10 @@ stwo-cairo-common = { path = "crates/common", version = "~1.2.2" }
 cairo-air = { path = "crates/cairo-air", version = "~1.2.2" }
 stwo-cairo-serialize = { path = "crates/cairo-serialize", version = "~1.2.2" }
 stwo-cairo-serialize-derive = { path = "crates/cairo-serialize-derive", version = "~1.2.2" }
-stwo = { git = "https://github.com/starkware-libs/stwo", rev = "93dd93e0" }
-stwo-constraint-framework = { git = "https://github.com/starkware-libs/stwo", rev = "93dd93e0" }
-stwo-air-utils-derive = { git = "https://github.com/starkware-libs/stwo", rev = "93dd93e0" }
-stwo-air-utils = { git = "https://github.com/starkware-libs/stwo", rev = "93dd93e0" }
+stwo = { git = "https://github.com/garrick247/stwo-fork.git", branch = "cuda-backend-dev-head" }
+stwo-constraint-framework = { git = "https://github.com/garrick247/stwo-fork.git", branch = "cuda-backend-dev-head" }
+stwo-air-utils-derive = { git = "https://github.com/garrick247/stwo-fork.git", branch = "cuda-backend-dev-head" }
+stwo-air-utils = { git = "https://github.com/garrick247/stwo-fork.git", branch = "cuda-backend-dev-head" }
 test-case = "3.3.1"
 thiserror = { version = "2.0.12", default-features = false }
 tracing = "0.1.40"
@@ -86,3 +86,13 @@ package = { "stwo-cairo-prover" = { opt-level = 1 }, "stwo" = { opt-level = 1 } 
 inherits = "dev"
 package = { "stwo-cairo-adapter" = { opt-level = 3 } }
 debug-assertions = false
+
+
+# Force vortex-cuda-backend (which depends on stwo at branch=cuda-backend)
+# to use the same dev-head branch we use here, so both compile against the
+# SAME stwo crate and CudaBackends trait impls unify with stwo-cairos prove().
+[patch."https://github.com/garrick247/stwo-fork.git"]
+stwo = { path = "/tmp/stwo-fork-work/crates/stwo" }
+stwo-constraint-framework = { path = "/tmp/stwo-fork-work/crates/constraint-framework" }
+stwo-air-utils = { path = "/tmp/stwo-fork-work/crates/air-utils" }
+stwo-air-utils-derive = { path = "/tmp/stwo-fork-work/crates/air-utils-derive" }
