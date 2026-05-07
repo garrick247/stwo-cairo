@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::Result;
+use cairo_air::verifier::verify_cairo_ex;
 use clap::Parser;
 use stwo::core::fri::FriConfig;
 use stwo::core::pcs::PcsConfig;
@@ -24,6 +25,8 @@ struct Args {
     program_type: ProgramType,
     #[arg(long = "program_arguments_file")]
     program_arguments_file: Option<PathBuf>,
+    #[clap(long = "verify", action)]
+    verify: bool,
 }
 
 fn main() -> Result<()> {
@@ -58,20 +61,31 @@ fn main() -> Result<()> {
             },
             lifting_log_size: None,
         },
-        preprocessed_trace: PreProcessedTraceVariant::CanonicalWithoutPedersen,
+        preprocessed_trace: PreProcessedTraceVariant::Canonical,
         store_polynomials_coefficients: false,
         include_all_preprocessed_columns: false,
         opt_n_id_to_big_components: None,
     };
 
     let t0 = Instant::now();
-    let _proof = prove_cairo_cuda::<Blake2sMerkleChannel>(prover_input, prover_params)
+    let proof = prove_cairo_cuda::<Blake2sMerkleChannel>(prover_input, prover_params)
         .expect("prove_cairo_cuda failed");
     let t_prove = t0.elapsed();
-    eprintln!();
-    eprintln!("============================================================");
     eprintln!("[time] prove_cairo_cuda: {:?}", t_prove);
-    eprintln!("[time] total (adapt + prove): {:?}", t_adapt + t_prove);
+
+    if args.verify {
+        let t0 = Instant::now();
+        verify_cairo_ex::<Blake2sMerkleChannel>(proof.into(), false)
+            .expect("verify_cairo failed");
+        let t_verify = t0.elapsed();
+        eprintln!("[time] verify_cairo: {:?}", t_verify);
+        eprintln!("[result] PROOF VALID");
+    } else {
+        let _ = proof;
+    }
+
+    eprintln!("============================================================");
+    eprintln!("[summary] adapt: {:?} prove: {:?}", t_adapt, t_prove);
     eprintln!("============================================================");
 
     Ok(())

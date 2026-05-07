@@ -92,6 +92,9 @@ fn cuda_cairo_provers<'a>(
     push_if_some!(wrappers, components, poseidon_round_keys);
     push_if_some!(wrappers, components, range_check_252_width_27);
     push_if_some!(wrappers, components, memory_address_to_id);
+    for c in &components.memory_id_to_big {
+        wrappers.push(Box::new(CudaFrameworkComponentRef(c)) as Box<dyn ComponentProver<CudaBackend>>);
+    }
     push_if_some!(wrappers, components, memory_id_to_small);
     push_if_some!(wrappers, components, range_check_6);
     push_if_some!(wrappers, components, range_check_8);
