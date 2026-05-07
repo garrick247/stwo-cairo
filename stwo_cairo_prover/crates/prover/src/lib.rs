@@ -7,3 +7,8 @@ pub mod debug_tools;
 pub mod prover;
 pub mod utils;
 pub mod witness;
+
+#[cfg(feature = "cuda-backend")]
+pub mod cuda_prover;
+#[cfg(feature = "cuda-backend")]
+pub use cuda_prover::prove_cairo_cuda;

@@ -4135,12 +4135,14 @@ dependencies = [
  "starknet-ff",
  "stwo",
  "stwo-cairo-adapter",
+ "stwo-cairo-common",
  "stwo-cairo-prover",
  "stwo-cairo-serialize",
  "tempfile",
  "thiserror",
  "tracing",
  "tracing-subscriber",
+ "vortexstark",
 ]
 
 [[package]]

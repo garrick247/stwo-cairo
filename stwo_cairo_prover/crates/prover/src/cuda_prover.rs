@@ -1,0 +1,287 @@
+//! CUDA-backed prove path for stwo-cairo.
+
+use std::sync::Arc;
+
+use cairo_air::cairo_components::CairoComponents;
+use cairo_air::claims::lookup_sum;
+use cairo_air::relations::CommonLookupElements;
+use cairo_air::verifier::INTERACTION_POW_BITS;
+use cairo_air::CairoProof;
+use num_traits::Zero;
+use stwo::core::channel::{Channel, MerkleChannel};
+use stwo::core::fields::m31::BaseField;
+use stwo::core::fields::qm31::SecureField;
+use stwo::core::fields::ExtensionOf;
+use stwo::core::poly::circle::CanonicCoset;
+use stwo::core::proof_of_work::GrindOps;
+use stwo::core::utils::MaybeOwned;
+use stwo::core::vcs_lifted::merkle_hasher::MerkleHasherLifted;
+use stwo::prover::backend::{BackendForChannel, Column, ColumnOps};
+use stwo::prover::mempool::BaseColumnPool;
+use stwo::prover::poly::circle::{CircleEvaluation, PolyOps};
+use stwo::prover::poly::BitReversedOrder;
+use stwo::prover::{prove_ex, CommitmentSchemeProver, CommitmentTreeProver, ComponentProver, ProvingError};
+use stwo_cairo_adapter::ProverInput;
+use stwo_cairo_serialize::CairoSerialize;
+use tracing::{event, span, Level};
+use vortex_cuda_backend::{CudaBackend, CudaColumn, CudaFrameworkComponentRef};
+
+use crate::prover::ProverParameters;
+use crate::witness::cairo::create_cairo_claim_generator;
+use crate::witness::utils::witness_trace_cells;
+
+macro_rules! push_if_some {
+    ($vec:ident, $components:ident, $field:ident) => {
+        if let Some(c) = &$components.$field {
+            $vec.push(Box::new(CudaFrameworkComponentRef(c))
+                as Box<dyn ComponentProver<CudaBackend>>);
+        }
+    };
+}
+
+fn cuda_cairo_provers<'a>(
+    components: &'a CairoComponents,
+) -> Vec<Box<dyn ComponentProver<CudaBackend> + 'a>> {
+    let mut wrappers: Vec<Box<dyn ComponentProver<CudaBackend>>> = vec![];
+    push_if_some!(wrappers, components, add_opcode);
+    push_if_some!(wrappers, components, add_opcode_small);
+    push_if_some!(wrappers, components, add_ap_opcode);
+    push_if_some!(wrappers, components, assert_eq_opcode);
+    push_if_some!(wrappers, components, assert_eq_opcode_imm);
+    push_if_some!(wrappers, components, assert_eq_opcode_double_deref);
+    push_if_some!(wrappers, components, blake_compress_opcode);
+    push_if_some!(wrappers, components, call_opcode_abs);
+    push_if_some!(wrappers, components, call_opcode_rel_imm);
+    push_if_some!(wrappers, components, generic_opcode);
+    push_if_some!(wrappers, components, jnz_opcode_non_taken);
+    push_if_some!(wrappers, components, jnz_opcode_taken);
+    push_if_some!(wrappers, components, jump_opcode_abs);
+    push_if_some!(wrappers, components, jump_opcode_double_deref);
+    push_if_some!(wrappers, components, jump_opcode_rel);
+    push_if_some!(wrappers, components, jump_opcode_rel_imm);
+    push_if_some!(wrappers, components, mul_opcode);
+    push_if_some!(wrappers, components, mul_opcode_small);
+    push_if_some!(wrappers, components, qm_31_add_mul_opcode);
+    push_if_some!(wrappers, components, ret_opcode);
+    push_if_some!(wrappers, components, verify_instruction);
+    push_if_some!(wrappers, components, blake_round);
+    push_if_some!(wrappers, components, blake_g);
+    push_if_some!(wrappers, components, blake_round_sigma);
+    push_if_some!(wrappers, components, triple_xor_32);
+    push_if_some!(wrappers, components, verify_bitwise_xor_12);
+    push_if_some!(wrappers, components, add_mod_builtin);
+    push_if_some!(wrappers, components, bitwise_builtin);
+    push_if_some!(wrappers, components, mul_mod_builtin);
+    push_if_some!(wrappers, components, pedersen_builtin);
+    push_if_some!(wrappers, components, pedersen_builtin_narrow_windows);
+    push_if_some!(wrappers, components, poseidon_builtin);
+    push_if_some!(wrappers, components, range_check96_builtin);
+    push_if_some!(wrappers, components, range_check_builtin);
+    push_if_some!(wrappers, components, ec_op_builtin);
+    push_if_some!(wrappers, components, partial_ec_mul_generic);
+    push_if_some!(wrappers, components, pedersen_aggregator_window_bits_18);
+    push_if_some!(wrappers, components, partial_ec_mul_window_bits_18);
+    push_if_some!(wrappers, components, pedersen_points_table_window_bits_18);
+    push_if_some!(wrappers, components, pedersen_aggregator_window_bits_9);
+    push_if_some!(wrappers, components, partial_ec_mul_window_bits_9);
+    push_if_some!(wrappers, components, pedersen_points_table_window_bits_9);
+    push_if_some!(wrappers, components, poseidon_aggregator);
+    push_if_some!(wrappers, components, poseidon_3_partial_rounds_chain);
+    push_if_some!(wrappers, components, poseidon_full_round_chain);
+    push_if_some!(wrappers, components, cube_252);
+    push_if_some!(wrappers, components, poseidon_round_keys);
+    push_if_some!(wrappers, components, range_check_252_width_27);
+    push_if_some!(wrappers, components, memory_address_to_id);
+    push_if_some!(wrappers, components, memory_id_to_small);
+    push_if_some!(wrappers, components, range_check_6);
+    push_if_some!(wrappers, components, range_check_8);
+    push_if_some!(wrappers, components, range_check_11);
+    push_if_some!(wrappers, components, range_check_12);
+    push_if_some!(wrappers, components, range_check_18);
+    push_if_some!(wrappers, components, range_check_20);
+    push_if_some!(wrappers, components, range_check_4_3);
+    push_if_some!(wrappers, components, range_check_4_4);
+    push_if_some!(wrappers, components, range_check_9_9);
+    push_if_some!(wrappers, components, range_check_7_2_5);
+    push_if_some!(wrappers, components, range_check_3_6_6_3);
+    push_if_some!(wrappers, components, range_check_4_4_4_4);
+    push_if_some!(wrappers, components, range_check_3_3_3_3_3);
+    push_if_some!(wrappers, components, verify_bitwise_xor_4);
+    push_if_some!(wrappers, components, verify_bitwise_xor_7);
+    push_if_some!(wrappers, components, verify_bitwise_xor_8);
+    push_if_some!(wrappers, components, verify_bitwise_xor_9);
+    wrappers
+}
+
+fn simd_to_cuda_eval<F>(
+    e: CircleEvaluation<stwo::prover::backend::simd::SimdBackend, F, BitReversedOrder>,
+) -> CircleEvaluation<CudaBackend, F, BitReversedOrder>
+where
+    F: Copy + Send + Sync + 'static + ExtensionOf<BaseField>,
+    stwo::prover::backend::simd::SimdBackend: ColumnOps<F>,
+    CudaBackend: ColumnOps<F, Column = CudaColumn<F>>,
+    CudaColumn<F>: FromIterator<F>,
+{
+    let domain = e.domain;
+    let cuda_col: CudaColumn<F> = e.values.to_cpu().into_iter().collect();
+    CircleEvaluation::new(domain, cuda_col)
+}
+
+pub fn prove_cairo_cuda<MC: MerkleChannel>(
+    input: ProverInput,
+    prover_params: ProverParameters,
+) -> Result<CairoProof<MC::H>, ProvingError>
+where
+    CudaBackend: BackendForChannel<MC>,
+    MC::H: MerkleHasherLifted,
+    <MC::H as MerkleHasherLifted>::Hash: CairoSerialize,
+{
+    let _span = span!(Level::INFO, "prove_cairo_cuda").entered();
+    let ProverParameters {
+        channel_hash: _,
+        channel_salt,
+        pcs_config,
+        preprocessed_trace: preprocessed_trace_variant,
+        store_polynomials_coefficients,
+        include_all_preprocessed_columns,
+        opt_n_id_to_big_components,
+    } = prover_params;
+
+    let preprocessed_trace = Arc::new(preprocessed_trace_variant.to_preprocessed_trace());
+
+    let cairo_claim_generator = create_cairo_claim_generator(input, preprocessed_trace.clone());
+    let span = span!(Level::INFO, "Write Base trace").entered();
+    let (simd_trace_evals, claim, interaction_generator) =
+        cairo_claim_generator.write_trace(opt_n_id_to_big_components);
+    span.exit();
+
+    let span = span!(Level::INFO, "SIMD->CUDA trace transfer").entered();
+    let trace_evals: Vec<CircleEvaluation<CudaBackend, _, _>> =
+        simd_trace_evals.into_iter().map(simd_to_cuda_eval).collect();
+    span.exit();
+
+    let max_log_trace_size = claim.log_sizes().iter().flatten().fold(
+        preprocessed_trace_variant.max_log_trace_size(),
+        |max, &size| max.max(size),
+    );
+    let cairo_air_log_degree_bound = 1u32;
+    let mut max_domain_log_size = max_log_trace_size
+        + std::cmp::max(
+            cairo_air_log_degree_bound,
+            pcs_config.fri_config.log_blowup_factor,
+        );
+    if let Some(lifting_log_size) = pcs_config.lifting_log_size {
+        if lifting_log_size < max_domain_log_size {
+            return Err(ProvingError::InvalidLiftingLogSize(
+                stwo::core::pcs::utils::InvalidLiftingLogSizeError {
+                    lifting_log_size,
+                    min_log_size: max_domain_log_size,
+                },
+            ));
+        }
+        max_domain_log_size = lifting_log_size;
+    }
+
+    let span = span!(Level::INFO, "Precompute Twiddles (CUDA)").entered();
+    let twiddles = CudaBackend::precompute_twiddles(
+        CanonicCoset::try_new(max_domain_log_size)?
+            .circle_domain()
+            .half_coset,
+    );
+    span.exit();
+
+    let span = span!(Level::INFO, "Preprocessed trace commit (CUDA)").entered();
+    use crate::witness::preprocessed_trace::gen_trace as gen_preproc_trace;
+    let preproc_simd = gen_preproc_trace(preprocessed_trace.clone());
+    let preproc_cuda: Vec<CircleEvaluation<CudaBackend, _, _>> =
+        preproc_simd.into_iter().map(simd_to_cuda_eval).collect();
+    let preprocessed_trace_polys = CudaBackend::interpolate_columns(preproc_cuda, &twiddles);
+
+    let base_column_pool = BaseColumnPool::<CudaBackend>::new();
+    let preprocessed_tree = MaybeOwned::Owned(CommitmentTreeProver::<CudaBackend, MC>::new(
+        preprocessed_trace_polys,
+        pcs_config.fri_config.log_blowup_factor,
+        &twiddles,
+        store_polynomials_coefficients,
+        pcs_config.lifting_log_size,
+        &base_column_pool,
+    ));
+    span.exit();
+
+    let channel = &mut <MC::C as Default>::default();
+    channel.mix_felts(&[channel_salt.into()]);
+    pcs_config.mix_into(channel);
+    let mut commitment_scheme = CommitmentSchemeProver::<CudaBackend, MC>::with_memory_pool(
+        pcs_config,
+        &twiddles,
+        &base_column_pool,
+    );
+    if store_polynomials_coefficients {
+        commitment_scheme.set_store_polynomials_coefficients();
+    }
+    commitment_scheme.commit_tree(preprocessed_tree, channel);
+
+    claim.mix_into::<MC>(channel);
+    let span = span!(Level::INFO, "Base trace commit (CUDA)").entered();
+    let mut tree_builder = commitment_scheme.tree_builder();
+    tree_builder.extend_evals(trace_evals);
+    tree_builder.commit(channel);
+    span.exit();
+
+    let interaction_pow = CudaBackend::grind(channel, INTERACTION_POW_BITS);
+    channel.mix_u64(interaction_pow);
+    let interaction_elements = CommonLookupElements::draw(channel);
+
+    let span = span!(Level::INFO, "Interaction trace + SIMD->CUDA").entered();
+    let (simd_inter_evals, interaction_claim) =
+        interaction_generator.write_interaction_trace(&interaction_elements);
+    let interaction_trace_evals: Vec<CircleEvaluation<CudaBackend, _, _>> =
+        simd_inter_evals.into_iter().map(simd_to_cuda_eval).collect();
+    span.exit();
+
+    tracing::info!(
+        "Witness trace cells: {:?}",
+        witness_trace_cells(&claim, &preprocessed_trace)
+    );
+    debug_assert_eq!(
+        lookup_sum(&claim, &interaction_elements, &interaction_claim),
+        SecureField::zero()
+    );
+    interaction_claim.mix_into(channel);
+
+    let span = span!(Level::INFO, "Interaction trace commit (CUDA)").entered();
+    let mut tree_builder = commitment_scheme.tree_builder();
+    tree_builder.extend_evals(interaction_trace_evals);
+    tree_builder.commit(channel);
+    span.exit();
+
+    let component_builder = CairoComponents::new(
+        &claim,
+        &interaction_elements,
+        &interaction_claim,
+        &preprocessed_trace.ids(),
+    );
+    let cuda_provers_owned = cuda_cairo_provers(&component_builder);
+    let cuda_provers_refs: Vec<&dyn ComponentProver<CudaBackend>> =
+        cuda_provers_owned.iter().map(|b| &**b).collect();
+
+    let span = span!(Level::INFO, "Prove STARKs (CUDA)").entered();
+    let proof = prove_ex::<CudaBackend, _>(
+        &cuda_provers_refs,
+        channel,
+        commitment_scheme,
+        include_all_preprocessed_columns,
+    )?;
+    span.exit();
+
+    event!(name: "component_info", Level::DEBUG, "Components: {}", component_builder);
+
+    Ok(CairoProof {
+        claim,
+        interaction_pow,
+        interaction_claim,
+        extended_stark_proof: proof,
+        channel_salt,
+        preprocessed_trace_variant,
+    })
+}
