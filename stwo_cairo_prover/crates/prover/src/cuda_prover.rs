@@ -25,6 +25,44 @@ use stwo_cairo_adapter::ProverInput;
 use stwo_cairo_serialize::CairoSerialize;
 use tracing::{event, span, Level};
 use vortex_cuda_backend::{CudaBackend, CudaColumn, CudaFrameworkComponentRef};
+use stwo_cairo_common::preprocessed_columns::preprocessed_trace::PreProcessedTraceVariant;
+
+// ---------------------------------------------------------------------------
+// Preprocessed-trace polynomial cache
+// ---------------------------------------------------------------------------
+//
+// gen_preproc_trace + SIMD->CUDA convert + interpolate_columns together
+// take ~2.1s and are deterministic for a given PreProcessedTraceVariant.
+// Cache the post-interpolate polys; subsequent proves deep-clone (D2D
+// memcpy ~few ms) instead of recomputing.
+
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+fn variant_key(v: PreProcessedTraceVariant) -> u8 {
+    match v {
+        PreProcessedTraceVariant::Canonical => 0,
+        PreProcessedTraceVariant::CanonicalWithoutPedersen => 1,
+        PreProcessedTraceVariant::CanonicalSmall => 2,
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn preproc_polys_cache() -> &'static Mutex<HashMap<u8, Arc<Vec<stwo::prover::poly::circle::CircleCoefficients<CudaBackend>>>>> {
+    static CACHE: OnceLock<Mutex<HashMap<u8, Arc<Vec<stwo::prover::poly::circle::CircleCoefficients<CudaBackend>>>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub static PREPROC_CACHE_HITS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static PREPROC_CACHE_MISSES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn preproc_cache_stats_take() -> (u64, u64) {
+    use std::sync::atomic::Ordering::Relaxed;
+    let hits = PREPROC_CACHE_HITS.swap(0, Relaxed);
+    let misses = PREPROC_CACHE_MISSES.swap(0, Relaxed);
+    (hits, misses)
+}
+
 
 use crate::prover::ProverParameters;
 use crate::witness::cairo::create_cairo_claim_generator;
@@ -195,12 +233,45 @@ where
 
     let span = span!(Level::INFO, "Preprocessed trace commit (CUDA)").entered();
     use crate::witness::preprocessed_trace::gen_trace as gen_preproc_trace;
-    let preproc_simd = gen_preproc_trace(preprocessed_trace.clone());
-    let preproc_cuda: Vec<CircleEvaluation<CudaBackend, _, _>> =
-        preproc_simd.into_iter().map(simd_to_cuda_eval).collect();
-    let preprocessed_trace_polys = CudaBackend::interpolate_columns(preproc_cuda, &twiddles);
+    let preprocessed_trace_polys: Vec<stwo::prover::poly::circle::CircleCoefficients<CudaBackend>> = {
+        let key = variant_key(preprocessed_trace_variant);
+        let cached_arc = {
+            let cache = preproc_polys_cache().lock().unwrap();
+            cache.get(&key).cloned()
+        };
+        if let Some(arc_polys) = cached_arc {
+            // Hit: deep-clone each poly (D2D memcpy ~few ms total).
+            let s = span!(Level::INFO, "Preproc: cache hit (D2D clone)").entered();
+            PREPROC_CACHE_HITS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let cloned: Vec<_> = arc_polys.iter().cloned().collect();
+            s.exit();
+            cloned
+        } else {
+            PREPROC_CACHE_MISSES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let s1 = span!(Level::INFO, "Preproc: gen_trace (SIMD)").entered();
+            let preproc_simd = gen_preproc_trace(preprocessed_trace.clone());
+            s1.exit();
+            let s2 = span!(Level::INFO, "Preproc: SIMD->CUDA convert").entered();
+            let preproc_cuda: Vec<CircleEvaluation<CudaBackend, _, _>> =
+                preproc_simd.into_iter().map(simd_to_cuda_eval).collect();
+            s2.exit();
+            let s3 = span!(Level::INFO, "Preproc: interpolate_columns (CUDA)").entered();
+            let polys = CudaBackend::interpolate_columns(preproc_cuda, &twiddles);
+            s3.exit();
+            // Store a clone in the cache so we can return owned polys.
+            let s4 = span!(Level::INFO, "Preproc: cache store (D2D clone)").entered();
+            let cached_clone: Vec<_> = polys.iter().cloned().collect();
+            preproc_polys_cache()
+                .lock()
+                .unwrap()
+                .insert(key, Arc::new(cached_clone));
+            s4.exit();
+            polys
+        }
+    };
 
     let base_column_pool = BaseColumnPool::<CudaBackend>::new();
+    let s4 = span!(Level::INFO, "Preproc: CommitmentTreeProver::new").entered();
     let preprocessed_tree = MaybeOwned::Owned(CommitmentTreeProver::<CudaBackend, MC>::new(
         preprocessed_trace_polys,
         pcs_config.fri_config.log_blowup_factor,
@@ -209,6 +280,7 @@ where
         pcs_config.lifting_log_size,
         &base_column_pool,
     ));
+    s4.exit();
     span.exit();
 
     let channel = &mut <MC::C as Default>::default();

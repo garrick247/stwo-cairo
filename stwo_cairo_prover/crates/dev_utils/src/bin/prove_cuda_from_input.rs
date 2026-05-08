@@ -24,6 +24,9 @@ struct Args {
     prover_input_path: PathBuf,
     #[clap(long = "verify", action)]
     verify: bool,
+    /// Number of prove iterations in this process (for measuring cache warmup).
+    #[clap(long = "iterations", default_value_t = 1)]
+    iterations: u32,
 }
 
 fn main() -> Result<()> {
@@ -59,13 +62,30 @@ fn main() -> Result<()> {
         opt_n_id_to_big_components: None,
     };
 
-    let t0 = Instant::now();
-    let proof = prove_cairo_cuda::<Blake2sMerkleChannel>(prover_input, prover_params)
-        .expect("prove_cairo_cuda failed");
-    let t_prove = t0.elapsed();
-    eprintln!("[time] prove_cairo_cuda: {:?}", t_prove);
-    let (n_calls, ns) = stwo_cairo_prover::eval_at_point_stats_take();
-    eprintln!("[stats] eval_at_point: calls={} total_ms={} avg_us={}", n_calls, ns/1_000_000, if n_calls>0 { ns/1_000/n_calls } else { 0 });
+    let mut last_proof = None;
+    let mut t_prove_first = std::time::Duration::ZERO;
+    let mut t_prove_last = std::time::Duration::ZERO;
+    for iter in 0..args.iterations {
+        // Re-read prover_input each iteration since prove_cairo_cuda consumes it.
+        let pi: ProverInput = from_reader(File::open(&args.prover_input_path)?)?;
+        let t0 = Instant::now();
+        let proof = prove_cairo_cuda::<Blake2sMerkleChannel>(pi, prover_params)
+            .expect("prove_cairo_cuda failed");
+        let t_prove = t0.elapsed();
+        let (n_calls, ns) = stwo_cairo_prover::eval_at_point_stats_take();
+        let (cache_hits, cache_misses) = stwo_cairo_prover::preproc_cache_stats_take();
+        eprintln!(
+            "[iter {}] prove={:?} eval_at_point_calls={} cache_hits={} cache_misses={}",
+            iter, t_prove, n_calls, cache_hits, cache_misses,
+        );
+        if iter == 0 {
+            t_prove_first = t_prove;
+        }
+        t_prove_last = t_prove;
+        last_proof = Some(proof);
+    }
+    eprintln!("[time] prove_cairo_cuda: {:?}", t_prove_last);
+    let proof = last_proof.expect("at least one iteration");
 
     let proof_json_path = args.prover_input_path.with_extension("cuda_proof.json");
     use cairo_air::utils::{serialize_proof_to_file, ProofFormat};
@@ -83,6 +103,9 @@ fn main() -> Result<()> {
         let _ = proof;
     }
 
-    eprintln!("[summary] load: {:?} prove: {:?}", t_load, t_prove);
+    eprintln!(
+        "[summary] load: {:?} prove_first: {:?} prove_last: {:?}",
+        t_load, t_prove_first, t_prove_last
+    );
     Ok(())
 }
