@@ -39,6 +39,10 @@ fn main() -> Result<()> {
     vortexstark::cuda::ffi::init_memory_pool();
 
     let t0 = Instant::now();
+    stwo_cairo_prover::prewarm_pedersen_gpu();
+    eprintln!("[time] prewarm_pedersen_gpu: {:?}", t0.elapsed());
+
+    let t0 = Instant::now();
     let prover_input: ProverInput = from_reader(File::open(&args.prover_input_path)?)?;
     let t_load = t0.elapsed();
     eprintln!("[time] load_input: {:?}", t_load);

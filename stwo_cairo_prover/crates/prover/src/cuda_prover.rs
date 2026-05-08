@@ -26,6 +26,63 @@ use stwo_cairo_serialize::CairoSerialize;
 use tracing::{event, span, Level};
 use vortex_cuda_backend::{CudaBackend, CudaColumn, CudaFrameworkComponentRef};
 use stwo_cairo_common::preprocessed_columns::preprocessed_trace::PreProcessedTraceVariant;
+use stwo::core::poly::circle::CircleDomain;
+use stwo_cairo_common::preprocessed_columns::pedersen::{
+    PedersenPoints, PEDERSEN_TABLE_18, PEDERSEN_TABLE_N_COLUMNS,
+};
+use stwo_cairo_common::preprocessed_columns::preprocessed_trace::PreProcessedColumn;
+use vortexstark::device::DeviceBuffer;
+
+/// Pre-uploaded GPU buffers for the WINDOW_BITS=18 Pedersen point table.
+/// LazyLock evaluation (~1.0s on first access) + 56 H->D uploads happen
+/// once per process; subsequent calls D->D clone (a few ms total).
+/// Force initialization of the GPU-resident Pedersen point table. Call once
+/// at process startup (before any prove) to amortize the ~1 s LazyLock init
+/// + H->D upload out of the first prove's critical path.
+pub fn prewarm_pedersen_gpu() {
+    let _ = pedersen_gpu_data();
+}
+
+fn pedersen_gpu_data() -> &'static Vec<DeviceBuffer<u32>> {
+    static CACHE: OnceLock<Vec<DeviceBuffer<u32>>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        // Force LazyLock init.
+        let _ = &*PEDERSEN_TABLE_18;
+        (0..PEDERSEN_TABLE_N_COLUMNS)
+            .map(|i| {
+                let pp = PedersenPoints::<18>::new(i);
+                let raw: Vec<u32> = pp.get_data().iter().map(|f| f.0).collect();
+                DeviceBuffer::from_host(&raw)
+            })
+            .collect()
+    })
+}
+
+/// CUDA-native column generation. For Pedersen columns we skip the SimdBackend
+/// `BaseColumn::from_cpu` SIMD pack and the `simd_to_cuda_eval` round-trip and
+/// upload directly from the LazyLock-cached `Vec<M31>`. All other column types
+/// fall through to `gen_column_simd` + `simd_to_cuda_eval`.
+fn gen_column_cuda(
+    c: &dyn PreProcessedColumn,
+) -> stwo::prover::poly::circle::CircleEvaluation<CudaBackend, BaseField, stwo::prover::poly::BitReversedOrder>
+{
+    let id = c.id().id;
+    if let Some(idx_str) = id.strip_prefix("pedersen_points_") {
+        if let Ok(idx) = idx_str.parse::<usize>() {
+            if idx < PEDERSEN_TABLE_N_COLUMNS {
+                let cached = &pedersen_gpu_data()[idx];
+                let buf = cached.clone();
+                let len = 1usize << c.log_size();
+                use vortex_cuda_backend::CudaColumn;
+                let col = CudaColumn::<BaseField>::from_device_buffer(buf, len);
+                let domain: CircleDomain = CanonicCoset::new(c.log_size()).circle_domain();
+                return stwo::prover::poly::circle::CircleEvaluation::new(domain, col);
+            }
+        }
+    }
+    simd_to_cuda_eval(c.gen_column_simd())
+}
+
 
 // ---------------------------------------------------------------------------
 // Preprocessed-trace polynomial cache
@@ -248,13 +305,13 @@ where
             cloned
         } else {
             PREPROC_CACHE_MISSES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let s1 = span!(Level::INFO, "Preproc: gen_trace (SIMD)").entered();
-            let preproc_simd = gen_preproc_trace(preprocessed_trace.clone());
+            let s1 = span!(Level::INFO, "Preproc: gen_trace_cuda (Pedersen direct upload)").entered();
+            let preproc_cuda: Vec<CircleEvaluation<CudaBackend, _, _>> = preprocessed_trace
+                .columns
+                .iter()
+                .map(|c| gen_column_cuda(c.as_ref()))
+                .collect();
             s1.exit();
-            let s2 = span!(Level::INFO, "Preproc: SIMD->CUDA convert").entered();
-            let preproc_cuda: Vec<CircleEvaluation<CudaBackend, _, _>> =
-                preproc_simd.into_iter().map(simd_to_cuda_eval).collect();
-            s2.exit();
             let s3 = span!(Level::INFO, "Preproc: interpolate_columns (CUDA)").entered();
             let polys = CudaBackend::interpolate_columns(preproc_cuda, &twiddles);
             s3.exit();
