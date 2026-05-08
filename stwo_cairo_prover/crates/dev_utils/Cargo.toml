@@ -17,6 +17,10 @@ cuda-backend = ["stwo-cairo-prover/cuda-backend", "dep:vortexstark"]
 name = "run_and_prove_cuda"
 required-features = ["cuda-backend"]
 
+[[bin]]
+name = "prove_cuda_from_input"
+required-features = ["cuda-backend"]
+
 [dependencies]
 anyhow.workspace = true
 cairo-air = { path = "../cairo-air", version = "~1.2.2" }
