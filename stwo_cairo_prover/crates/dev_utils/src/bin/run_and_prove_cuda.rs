@@ -27,6 +27,9 @@ struct Args {
     program_arguments_file: Option<PathBuf>,
     #[clap(long = "verify", action)]
     verify: bool,
+    /// Re-prove this many times in the same process (cold = first, warm = rest).
+    #[clap(long = "iterations", default_value_t = 1)]
+    iterations: u32,
 }
 
 fn main() -> Result<()> {
@@ -39,14 +42,15 @@ fn main() -> Result<()> {
     vortexstark::cuda::ffi::init_memory_pool();
 
     let t0 = Instant::now();
-    let prover_input = run_and_adapt(
+    let _warmup_pi = run_and_adapt(
         &args.program,
-        args.program_type,
+        args.program_type.clone(),
         LayoutName::all_cairo_stwo,
         args.program_arguments_file.as_ref(),
     )?;
     let t_adapt = t0.elapsed();
     eprintln!("[time] VM run + adapt: {:?}", t_adapt);
+    drop(_warmup_pi);
 
     let prover_params = ProverParameters {
         channel_hash: ChannelHash::Blake2s,
@@ -67,11 +71,27 @@ fn main() -> Result<()> {
         opt_n_id_to_big_components: None,
     };
 
-    let t0 = Instant::now();
-    let proof = prove_cairo_cuda::<Blake2sMerkleChannel>(prover_input, prover_params)
-        .expect("prove_cairo_cuda failed");
-    let t_prove = t0.elapsed();
-    eprintln!("[time] prove_cairo_cuda: {:?}", t_prove);
+    let mut t_prove_first = std::time::Duration::ZERO;
+    let mut t_prove_last = std::time::Duration::ZERO;
+    let mut last_proof = None;
+    for iter in 0..args.iterations {
+        let pi = run_and_adapt(
+            &args.program,
+            args.program_type.clone(),
+            LayoutName::all_cairo_stwo,
+            args.program_arguments_file.as_ref(),
+        )?;
+        let t0 = Instant::now();
+        let proof = prove_cairo_cuda::<Blake2sMerkleChannel>(pi, prover_params.clone())
+            .expect("prove_cairo_cuda failed");
+        let t = t0.elapsed();
+        eprintln!("[time] iter {} prove: {:?}", iter, t);
+        if iter == 0 { t_prove_first = t; }
+        t_prove_last = t;
+        last_proof = Some(proof);
+    }
+    let t_prove = t_prove_last;
+    let proof = last_proof.expect("no iterations ran");
 
     if args.verify {
         let t0 = Instant::now();
@@ -85,7 +105,7 @@ fn main() -> Result<()> {
     }
 
     eprintln!("============================================================");
-    eprintln!("[summary] adapt: {:?} prove: {:?}", t_adapt, t_prove);
+    eprintln!("[summary] adapt: {:?} prove_cold: {:?} prove_warm: {:?}", t_adapt, t_prove_first, t_prove);
     eprintln!("============================================================");
 
     Ok(())
