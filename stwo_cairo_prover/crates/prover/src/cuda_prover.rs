@@ -289,7 +289,6 @@ where
     span.exit();
 
     let span = span!(Level::INFO, "Preprocessed trace commit (CUDA)").entered();
-    use crate::witness::preprocessed_trace::gen_trace as gen_preproc_trace;
     let preprocessed_trace_polys: Vec<stwo::prover::poly::circle::CircleCoefficients<CudaBackend>> = {
         let key = variant_key(preprocessed_trace_variant);
         let cached_arc = {
