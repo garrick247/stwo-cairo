@@ -4021,6 +4021,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "stwo"
 version = "2.2.0"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
 dependencies = [
  "blake2",
  "blake3",
@@ -4049,6 +4050,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils"
 version = "2.2.0"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -4060,6 +4062,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils-derive"
 version = "2.2.0"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
 dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
@@ -4142,7 +4145,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-subscriber",
- "vortexstark 0.1.0",
+ "vortexstark",
 ]
 
 [[package]]
@@ -4183,7 +4186,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vortex-cuda-backend",
- "vortexstark 0.1.0 (git+https://github.com/garrick247/VortexSTARK.git?rev=01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a)",
+ "vortexstark",
 ]
 
 [[package]]
@@ -4216,6 +4219,7 @@ dependencies = [
 [[package]]
 name = "stwo-constraint-framework"
 version = "2.2.0"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
 dependencies = [
  "hashbrown 0.15.5",
  "itertools 0.12.1",
@@ -4850,7 +4854,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 [[package]]
 name = "vortex-cuda-backend"
 version = "0.1.0"
-source = "git+https://github.com/garrick247/VortexSTARK.git?rev=01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a#01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a"
+source = "git+https://github.com/garrick247/VortexSTARK.git?rev=d33a896270aa727d11430acf8d4457218722a396#d33a896270aa727d11430acf8d4457218722a396"
 dependencies = [
  "blake2",
  "itertools 0.14.0",
@@ -4861,29 +4865,13 @@ dependencies = [
  "stwo",
  "stwo-constraint-framework",
  "tracing",
- "vortexstark 0.1.0 (git+https://github.com/garrick247/VortexSTARK.git?rev=01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a)",
+ "vortexstark",
 ]
 
 [[package]]
 name = "vortexstark"
 version = "0.1.0"
-dependencies = [
- "axum",
- "blake2",
- "cc",
- "clap",
- "rand 0.9.2",
- "rayon",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "vortexstark"
-version = "0.1.0"
-source = "git+https://github.com/garrick247/VortexSTARK.git?rev=01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a#01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a"
+source = "git+https://github.com/garrick247/VortexSTARK.git?rev=d33a896270aa727d11430acf8d4457218722a396#d33a896270aa727d11430acf8d4457218722a396"
 dependencies = [
  "axum",
  "blake2",

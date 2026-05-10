@@ -87,9 +87,3 @@ inherits = "dev"
 package = { "stwo-cairo-adapter" = { opt-level = 3 } }
 debug-assertions = false
 
-
-[patch."https://github.com/garrick247/stwo-fork.git"]
-stwo = { path = "/tmp/stwo-fork-work/crates/stwo" }
-stwo-constraint-framework = { path = "/tmp/stwo-fork-work/crates/constraint-framework" }
-stwo-air-utils = { path = "/tmp/stwo-fork-work/crates/air-utils" }
-stwo-air-utils-derive = { path = "/tmp/stwo-fork-work/crates/air-utils-derive" }

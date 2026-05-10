@@ -43,8 +43,8 @@ indexmap.workspace = true
 bytemuck.workspace = true
 
 # CUDA backend (PoC: route prove_cairo through VortexSTARK CudaBackend)
-vortex-cuda-backend = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a", optional = true }
-vortexstark = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "01a87cdffc8ed3e68dab01e0dcf9e06fccebef9a", optional = true }
+vortex-cuda-backend = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "d33a896270aa727d11430acf8d4457218722a396", optional = true }
+vortexstark = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "d33a896270aa727d11430acf8d4457218722a396", optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
 sonic-rs.workspace = true
