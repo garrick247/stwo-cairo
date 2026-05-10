@@ -66,7 +66,7 @@ fn main() -> Result<()> {
             lifting_log_size: None,
         },
         preprocessed_trace: PreProcessedTraceVariant::Canonical,
-        store_polynomials_coefficients: false,
+        store_polynomials_coefficients: true,
         include_all_preprocessed_columns: false,
         opt_n_id_to_big_components: None,
     };
