@@ -47,7 +47,7 @@ cairo-lang-utils = "=2.15.0"
 serde_json.workspace = true
 cairo-vm.workspace = true
 
-vortexstark = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "d33a896270aa727d11430acf8d4457218722a396", optional = true }
+vortexstark = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "f2089a388ab983142f262e9445ec2cf9ecb33291", optional = true }
 
 [dev-dependencies]
 tempfile = "3.8.0"

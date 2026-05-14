@@ -88,9 +88,11 @@ fn main() -> Result<()> {
         let (eap_calls, eap_ns) = stwo_cairo_prover::eval_at_point_stats_take();
         let (cache_hits, cache_misses) = stwo_cairo_prover::preproc_cache_stats_take();
         let (gpu_bc, gpu_bc_ns, cpu_bc, cpu_bc_ns) = stwo_cairo_prover::bytecode_kernel_stats_take();
+        let (an_c, an_ns, qc_c, qc_ns) = stwo_cairo_prover::quotient_stats_take();
+        let (fl_c, fl_ns, fc_c, fc_ns) = stwo_cairo_prover::fri_stats_take();
         eprintln!(
-            "[time] iter {} prove: {:?}  [stats] eval_at_point={} ({:.1}ms) preproc_cache={}h/{}m bytecode={}gpu({:.1}ms)/{}cpu({:.1}ms)",
-            iter, t, eap_calls, eap_ns as f64 / 1e6, cache_hits, cache_misses, gpu_bc, gpu_bc_ns as f64 / 1e6, cpu_bc, cpu_bc_ns as f64 / 1e6,
+            "[time] iter {} prove: {:?}  [stats] eap={}({:.0}ms) cache={}h/{}m bc={}g({:.0}ms)/{}c({:.0}ms) qo=an{}({:.0}ms)/qc{}({:.0}ms) fri=fl{}({:.0}ms)/fc{}({:.0}ms)",
+            iter, t, eap_calls, eap_ns as f64 / 1e6, cache_hits, cache_misses, gpu_bc, gpu_bc_ns as f64 / 1e6, cpu_bc, cpu_bc_ns as f64 / 1e6, an_c, an_ns as f64 / 1e6, qc_c, qc_ns as f64 / 1e6, fl_c, fl_ns as f64 / 1e6, fc_c, fc_ns as f64 / 1e6,
         );
         if iter == 0 { t_prove_first = t; }
         t_prove_last = t;
