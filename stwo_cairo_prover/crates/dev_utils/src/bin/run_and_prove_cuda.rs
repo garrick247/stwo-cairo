@@ -85,7 +85,13 @@ fn main() -> Result<()> {
         let proof = prove_cairo_cuda::<Blake2sMerkleChannel>(pi, prover_params.clone())
             .expect("prove_cairo_cuda failed");
         let t = t0.elapsed();
-        eprintln!("[time] iter {} prove: {:?}", iter, t);
+        let (eap_calls, eap_ns) = stwo_cairo_prover::eval_at_point_stats_take();
+        let (cache_hits, cache_misses) = stwo_cairo_prover::preproc_cache_stats_take();
+        let (gpu_bc, gpu_bc_ns, cpu_bc, cpu_bc_ns) = stwo_cairo_prover::bytecode_kernel_stats_take();
+        eprintln!(
+            "[time] iter {} prove: {:?}  [stats] eval_at_point={} ({:.1}ms) preproc_cache={}h/{}m bytecode={}gpu({:.1}ms)/{}cpu({:.1}ms)",
+            iter, t, eap_calls, eap_ns as f64 / 1e6, cache_hits, cache_misses, gpu_bc, gpu_bc_ns as f64 / 1e6, cpu_bc, cpu_bc_ns as f64 / 1e6,
+        );
         if iter == 0 { t_prove_first = t; }
         t_prove_last = t;
         last_proof = Some(proof);
