@@ -4854,7 +4854,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 [[package]]
 name = "vortex-cuda-backend"
 version = "0.1.0"
-source = "git+https://github.com/garrick247/VortexSTARK.git?rev=f2089a388ab983142f262e9445ec2cf9ecb33291#f2089a388ab983142f262e9445ec2cf9ecb33291"
+source = "git+https://github.com/garrick247/VortexSTARK.git?rev=1e88c31974bcb9906274d7a129bd9f2902d7ae2e#1e88c31974bcb9906274d7a129bd9f2902d7ae2e"
 dependencies = [
  "blake2",
  "itertools 0.14.0",
@@ -4871,7 +4871,7 @@ dependencies = [
 [[package]]
 name = "vortexstark"
 version = "0.1.0"
-source = "git+https://github.com/garrick247/VortexSTARK.git?rev=f2089a388ab983142f262e9445ec2cf9ecb33291#f2089a388ab983142f262e9445ec2cf9ecb33291"
+source = "git+https://github.com/garrick247/VortexSTARK.git?rev=1e88c31974bcb9906274d7a129bd9f2902d7ae2e#1e88c31974bcb9906274d7a129bd9f2902d7ae2e"
 dependencies = [
  "axum",
  "blake2",

@@ -90,9 +90,11 @@ fn main() -> Result<()> {
         let (gpu_bc, gpu_bc_ns, cpu_bc, cpu_bc_ns) = stwo_cairo_prover::bytecode_kernel_stats_take();
         let (an_c, an_ns, qc_c, qc_ns) = stwo_cairo_prover::quotient_stats_take();
         let (fl_c, fl_ns, fc_c, fc_ns) = stwo_cairo_prover::fri_stats_take();
+        let (nt_c, nt_ns, ift_c, ift_ns) = stwo_cairo_prover::ntt_stats_take();
+        let (mk_c, mk_ns) = stwo_cairo_prover::merkle_stats_take();
         eprintln!(
-            "[time] iter {} prove: {:?}  [stats] eap={}({:.0}ms) cache={}h/{}m bc={}g({:.0}ms)/{}c({:.0}ms) qo=an{}({:.0}ms)/qc{}({:.0}ms) fri=fl{}({:.0}ms)/fc{}({:.0}ms)",
-            iter, t, eap_calls, eap_ns as f64 / 1e6, cache_hits, cache_misses, gpu_bc, gpu_bc_ns as f64 / 1e6, cpu_bc, cpu_bc_ns as f64 / 1e6, an_c, an_ns as f64 / 1e6, qc_c, qc_ns as f64 / 1e6, fl_c, fl_ns as f64 / 1e6, fc_c, fc_ns as f64 / 1e6,
+            "[time] iter {} prove: {:?}  [stats] eap={}({:.0}ms) cache={}h/{}m bc={}g({:.0}ms)/{}c({:.0}ms) qo=an{}({:.0}ms)/qc{}({:.0}ms) fri=fl{}({:.0}ms)/fc{}({:.0}ms) ntt=fwd{}({:.0}ms)/ifft{}({:.0}ms) mk={}({:.0}ms)",
+            iter, t, eap_calls, eap_ns as f64 / 1e6, cache_hits, cache_misses, gpu_bc, gpu_bc_ns as f64 / 1e6, cpu_bc, cpu_bc_ns as f64 / 1e6, an_c, an_ns as f64 / 1e6, qc_c, qc_ns as f64 / 1e6, fl_c, fl_ns as f64 / 1e6, fc_c, fc_ns as f64 / 1e6, nt_c, nt_ns as f64 / 1e6, ift_c, ift_ns as f64 / 1e6, mk_c, mk_ns as f64 / 1e6,
         );
         if iter == 0 { t_prove_first = t; }
         t_prove_last = t;

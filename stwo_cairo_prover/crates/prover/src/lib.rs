@@ -18,6 +18,8 @@ pub use vortex_cuda_backend::eval_at_point_stats_take;
 pub use vortex_cuda_backend::bytecode_kernel_stats_take;
 pub use vortex_cuda_backend::quotient_stats_take;
 pub use vortex_cuda_backend::fri_stats_take;
+pub use vortex_cuda_backend::ntt_stats_take;
+pub use vortex_cuda_backend::merkle_stats_take;
 #[cfg(feature = "cuda-backend")]
 pub use cuda_prover::preproc_cache_stats_take;
 #[cfg(feature = "cuda-backend")]
