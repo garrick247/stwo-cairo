@@ -10,6 +10,17 @@ description = "Development utilities and tools for Stwo Cairo prover"
 name = "extract_mem_trace"
 required-features = ["stwo-cairo-adapter/extract-mem-trace"]
 
+[features]
+cuda-backend = ["stwo-cairo-prover/cuda-backend", "dep:vortexstark"]
+
+[[bin]]
+name = "run_and_prove_cuda"
+required-features = ["cuda-backend"]
+
+[[bin]]
+name = "prove_cuda_from_input"
+required-features = ["cuda-backend"]
+
 [dependencies]
 anyhow.workspace = true
 cairo-air = { path = "../cairo-air", version = "~1.2.2" }
@@ -17,6 +28,7 @@ clap.workspace = true
 serde.workspace = true
 starknet-ff.workspace = true
 sonic-rs.workspace = true
+stwo-cairo-common = { path = "../common", version = "~1.2.2" }
 stwo-cairo-adapter = { path = "../adapter", version = "~1.2.2" }
 stwo-cairo-serialize = { path = "../cairo-serialize", version = "~1.2.2" }
 stwo.workspace = true
@@ -34,6 +46,8 @@ cairo-lang-utils = "=2.15.0"
 
 serde_json.workspace = true
 cairo-vm.workspace = true
+
+vortexstark = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "1e88c31974bcb9906274d7a129bd9f2902d7ae2e", optional = true }
 
 [dev-dependencies]
 tempfile = "3.8.0"

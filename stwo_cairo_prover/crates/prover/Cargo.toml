@@ -9,6 +9,7 @@ description = "STARK prover for Cairo programs using the Stwo proving system"
 [features]
 slow-tests = []
 relation-tracker = []
+cuda-backend = ["dep:vortex-cuda-backend", "dep:vortexstark"]
 
 # Define Nightly features in order to allow selective tests
 # Use the following #[cfg(feature = "nightly")]
@@ -40,6 +41,10 @@ tracing.workspace = true
 dashmap.workspace = true
 indexmap.workspace = true
 bytemuck.workspace = true
+
+# CUDA backend (PoC: route prove_cairo through VortexSTARK CudaBackend)
+vortex-cuda-backend = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "1e88c31974bcb9906274d7a129bd9f2902d7ae2e", optional = true }
+vortexstark = { git = "https://github.com/garrick247/VortexSTARK.git", rev = "1e88c31974bcb9906274d7a129bd9f2902d7ae2e", optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
 sonic-rs.workspace = true

@@ -7,3 +7,20 @@ pub mod debug_tools;
 pub mod prover;
 pub mod utils;
 pub mod witness;
+
+#[cfg(feature = "cuda-backend")]
+pub mod cuda_prover;
+#[cfg(feature = "cuda-backend")]
+pub use cuda_prover::prove_cairo_cuda;
+
+#[cfg(feature = "cuda-backend")]
+pub use vortex_cuda_backend::eval_at_point_stats_take;
+pub use vortex_cuda_backend::bytecode_kernel_stats_take;
+pub use vortex_cuda_backend::quotient_stats_take;
+pub use vortex_cuda_backend::fri_stats_take;
+pub use vortex_cuda_backend::ntt_stats_take;
+pub use vortex_cuda_backend::merkle_stats_take;
+#[cfg(feature = "cuda-backend")]
+pub use cuda_prover::preproc_cache_stats_take;
+#[cfg(feature = "cuda-backend")]
+pub use cuda_prover::prewarm_pedersen_gpu;
