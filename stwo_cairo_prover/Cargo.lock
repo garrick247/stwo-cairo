@@ -4021,7 +4021,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "stwo"
 version = "2.2.0"
-source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=5c41bf4a379df67e6de40776b10ba4c23900c0f4#5c41bf4a379df67e6de40776b10ba4c23900c0f4"
 dependencies = [
  "blake2",
  "blake3",
@@ -4050,7 +4050,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils"
 version = "2.2.0"
-source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=5c41bf4a379df67e6de40776b10ba4c23900c0f4#5c41bf4a379df67e6de40776b10ba4c23900c0f4"
 dependencies = [
  "bytemuck",
  "itertools 0.12.1",
@@ -4062,7 +4062,7 @@ dependencies = [
 [[package]]
 name = "stwo-air-utils-derive"
 version = "2.2.0"
-source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=5c41bf4a379df67e6de40776b10ba4c23900c0f4#5c41bf4a379df67e6de40776b10ba4c23900c0f4"
 dependencies = [
  "itertools 0.13.0",
  "proc-macro2",
@@ -4219,7 +4219,7 @@ dependencies = [
 [[package]]
 name = "stwo-constraint-framework"
 version = "2.2.0"
-source = "git+https://github.com/garrick247/stwo-fork.git?rev=483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c#483f8c94c02bc7c4eaf128f2cd2269dd6f1a5f6c"
+source = "git+https://github.com/garrick247/stwo-fork.git?rev=5c41bf4a379df67e6de40776b10ba4c23900c0f4#5c41bf4a379df67e6de40776b10ba4c23900c0f4"
 dependencies = [
  "hashbrown 0.15.5",
  "itertools 0.12.1",
@@ -4854,7 +4854,6 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 [[package]]
 name = "vortex-cuda-backend"
 version = "0.1.0"
-source = "git+https://github.com/garrick247/VortexSTARK.git?rev=1e88c31974bcb9906274d7a129bd9f2902d7ae2e#1e88c31974bcb9906274d7a129bd9f2902d7ae2e"
 dependencies = [
  "blake2",
  "itertools 0.14.0",
@@ -4871,7 +4870,6 @@ dependencies = [
 [[package]]
 name = "vortexstark"
 version = "0.1.0"
-source = "git+https://github.com/garrick247/VortexSTARK.git?rev=1e88c31974bcb9906274d7a129bd9f2902d7ae2e#1e88c31974bcb9906274d7a129bd9f2902d7ae2e"
 dependencies = [
  "axum",
  "blake2",
